@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SilentTalk - Enhanced AI-Powered Sign Language Translator</title>
+    
+    <!-- External Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Local Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-brand">
+                <i class="fas fa-hands" aria-hidden="true"></i>
+                <span>SilentTalk Enhanced</span>
+            </div>
+            <div class="header-controls">
+                
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="sr-only">Logout</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Left Column -->
+        <div class="main-content">
+            <!-- Mode Tabs -->
+            <div class="mode-tabs" role="tablist">
+                <button class="mode-tab active" data-mode="detect" role="tab" aria-selected="true">
+                    <i class="fas fa-hand-paper"></i>
+                    Detection
+                </button>
+                <button class="mode-tab" data-mode="practice" role="tab" aria-selected="false">
+                    <i class="fas fa-graduation-cap"></i>
+                    Practice
+                </button>
+                <button class="mode-tab" data-mode="words" role="tab" aria-selected="false">
+                    <i class="fas fa-spell-check"></i>
+                    Words
+                </button>
+                <button class="mode-tab" data-mode="tutorial" role="tab" aria-selected="false">
+                    <i class="fas fa-question-circle"></i>
+                    Tutorial
+                </button>
+            </div>
+
+            <!-- Camera Section -->
+            <div class="camera-section">
+                <div class="camera-container">
+                    <video id="inputVideo" autoplay muted playsinline aria-label="Camera feed"></video>
+                    <canvas id="outputCanvas" aria-label="Hand detection overlay"></canvas>
+                    <div class="camera-overlay">
+                        <div class="camera-status" id="cameraStatus">
+                            <div class="status-indicator" id="statusIndicator"></div>
+                            <span>Camera Ready</span>
+                        </div>
+                        <div class="confidence-display" id="confidenceDisplay">
+                            <div>Confidence</div>
+                            <div id="confidenceValue">0%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="camera-controls">
+                    <button id="startCamera" class="btn btn-primary">
+                        <i class="fas fa-play"></i>
+                        Start Detection
+                    </button>
+                    <button id="stopCamera" class="btn btn-secondary" style="display: none;">
+                        <i class="fas fa-stop"></i>
+                        Stop Detection
+                    </button>
+                    <button id="speakButton" class="btn btn-success">
+                        <i class="fas fa-volume-up"></i>
+                        Speak
+                    </button>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="output-section">
+                <div class="current-detection">
+                    <div class="detected-sign" id="detectedSign">Ready</div>
+                    <div class="detection-confidence" id="detectionInfo">
+                        Start detection to see sign language recognition
+                    </div>
+                </div>
+
+                <!-- Mode Content -->
+                <div id="detectMode" class="mode-content">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Real-time Detection</h3>
+                    </div>
+                    <p>Show hand signs to the camera for real-time recognition of ASL letters and common words.</p>
+                </div>
+
+                <div id="practiceMode" class="mode-content" style="display: none;">
+                    <div class="practice-container">
+                        <h3>Practice Mode</h3>
+                        <div class="practice-target" id="practiceTarget">A</div>
+                        <p>Show the sign for the letter above</p>
+                        <div class="practice-feedback" id="practiceFeedback"></div>
+                        <div style="margin-top: 1.5rem;">
+                            <button id="nextLetter" class="btn btn-primary">Next Letter</button>
+                            <button id="skipLetter" class="btn btn-secondary">Skip</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="wordsMode" class="mode-content" style="display: none;">
+                    <div class="practice-container">
+                        <h3>Word Practice</h3>
+                        <div class="practice-target" id="wordTarget">Hello</div>
+                        <p>Show the signs to spell the word above</p>
+                        <div class="practice-feedback" id="wordFeedback"></div>
+                        <div style="margin-top: 1.5rem;">
+                            <button id="nextWord" class="btn btn-primary">Next Word</button>
+                            <button id="speakWord" class="btn btn-success">
+                                <i class="fas fa-volume-up"></i>
+                                Hear Word
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tutorialMode" class="mode-content" style="display: none;">
+                    <div class="widget">
+                        <h3>Interactive Tutorial</h3>
+                        <div id="tutorialContent">
+                            <h4>Welcome to SilentTalk!</h4>
+                            <p>Learn sign language with our interactive tutorials:</p>
+                            <ul style="margin: 1rem 0; padding-left: 2rem;">
+                                <li>Start with basic ASL alphabet</li>
+                                <li>Practice common words and phrases</li>
+                                <li>Track your progress and earn achievements</li>
+                                <li>Use real-time feedback to improve</li>
+                            </ul>
+                            <button id="startTutorial" class="btn btn-primary">Start Tutorial</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="sidebar">
+            <!-- Progress Widget -->
+            <div class="widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Your Progress</h3>
+                    <button class="btn-icon btn-secondary" id="refreshStats" aria-label="Refresh statistics">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="dailyPractice">0</div>
+                        <div class="stat-label">Today</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalSigns">0</div>
+                        <div class="stat-label">Signs Learned</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="accuracy">0%</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="streak">0</div>
+                        <div class="stat-label">Day Streak</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Daily Goal</span>
+                        <span id="goalProgress">0/10</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="dailyProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements Widget -->
+            <div class="widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Achievements</h3>
+                    <span class="stat-value" id="totalAchievements">0/12</span>
+                </div>
+                <div class="achievement-list" id="achievementList">
+                    <!-- Achievements will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- History Widget -->
+            <div class="widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Recent Activity</h3>
+                    <button class="btn-icon btn-secondary" id="clearHistory" aria-label="Clear history">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">
+                        <i class="fas fa-history"></i>
+                        <p>Your practice history will appear here</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Quick Actions</h3>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <button class="btn btn-primary" id="exportData">
+                        <i class="fas fa-download"></i>
+                        Export Progress
+                    </button>
+                    <button class="btn btn-secondary" id="importData">
+                        <i class="fas fa-upload"></i>
+                        Import Data
+                    </button>
+                    <button class="btn btn-success" id="shareProgress">
+                        <i class="fas fa-share"></i>
+                        Share Progress
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutorial Overlay -->
+    <div id="tutorialOverlay" class="tutorial-overlay" style="display: none;">
+        <div class="tutorial-modal">
+            <div class="widget-header">
+                <h3 id="tutorialTitle">Tutorial Step 1</h3>
+                <button class="btn-icon btn-secondary" id="closeTutorial" aria-label="Close tutorial">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="tutorialText">
+                <p>Welcome to SilentTalk! Let's start by learning the basics of sign language recognition.</p>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+                <button class="btn btn-secondary" id="prevTutorial">Previous</button>
+                <button class="btn btn-primary" id="nextTutorial">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Local Script -->
+    <script src="script.js"></script>
+</body>
+</html>
